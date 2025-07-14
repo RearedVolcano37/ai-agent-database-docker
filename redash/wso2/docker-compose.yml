@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  wso2am:
+    image: wso2/wso2am:4.2.0
+    env_file: .env
+    ports:
+      - "9443:9443"
+      - "9763:9763"
+    depends_on:
+      - mysql
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:5.7
+    env_file: .env
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
