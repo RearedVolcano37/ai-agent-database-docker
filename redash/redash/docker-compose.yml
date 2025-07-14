@@ -1,0 +1,32 @@
+version: '3'
+
+services:
+  server:
+    image: redash/redash:latest
+    env_file: .env
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    volumes:
+      # Optional: Mount for persistent app data or config if needed
+      # - redash_data:/app/data
+
+  postgres:
+    image: postgres:13
+    env_file: .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:6-alpine
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
