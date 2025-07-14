@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  taiga:
+    image: taigaio/taiga-back:latest
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - rabbitmq
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:13
+    env_file: .env
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    env_file: .env
+    restart: unless-stopped
+
+volumes:
+  pg_data:
