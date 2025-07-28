@@ -1,0 +1,89 @@
+import os
+from langchain.tools import ShellTool
+from langchain.prompts import ChatPromptTemplate
+from langchain.chat_models import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+# ========= CONFIG =========
+PROJECT_DIR = "./sample_project"
+README_PATH = os.path.join(PROJECT_DIR, "README.md")
+
+AZURE_KEY = "your-azure-api-key"
+AZURE_ENDPOINT = "https://your-azure-endpoint.openai.azure.com/"
+OPENAI_DEPLOYMENT = "your-azure-deployment-name"
+
+GOOGLE_API_KEY = "your-google-api-key"
+USE_OPENAI = True  # Toggle between OpenAI and Gemini
+
+# ========= LLM SETUP =========
+if USE_OPENAI:
+    llm = ChatOpenAI(
+        azure_endpoint=AZURE_ENDPOINT,
+        openai_api_key=AZURE_KEY,
+        deployment_name=OPENAI_DEPLOYMENT
+    )
+else:
+    llm = ChatGoogleGenerativeAI(
+        google_api_key=GOOGLE_API_KEY,
+        model="gemini-pro"
+    )
+
+
+def parse_readme(readme_path: str) -> dict:
+    """Extracts commands, files, dependencies, and env vars from a README file."""
+    if not os.path.exists(readme_path):
+        return {}
+
+    with open(readme_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "You're a software assistant. Given a README or config snippet, extract:\n"
+                   "1. Execution commands\n"
+                   "2. Files accessed or required\n"
+                   "3. Third-party dependencies\n"
+                   "4. Environment variables\n"
+                   "Respond in JSON format with keys: execution_commands, accessed_files, third_party_components, environment_vars."),
+        ("user", "{doc}")
+    ])
+    chain = prompt | llm
+    result = chain.invoke({"doc": content})
+
+    try:
+        return eval(result.content) if isinstance(result.content, str) else result.content
+    except Exception:
+        return {"raw_output": result.content}
+
+
+def parse_directory_structure(project_dir: str) -> dict:
+    """Extracts file paths to config files, third-party config, logs, and scripts using `tree`."""
+    shell = ShellTool()
+    tree_output = shell.run(f"tree {project_dir}")
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "You're a project directory parser. Given a tree command output, extract JSON with:\n"
+                   "- app_config_paths (e.g., config.json, .env, app.yml)\n"
+                   "- third_party_config_paths (e.g., docker-compose.yml, keycloak.json)\n"
+                   "- log_file_paths (e.g., logs/*.log)\n"
+                   "- script_paths (e.g., .sh, .py, .bat)\n"
+                   "- dockerfiles (e.g., Dockerfile or */Dockerfile)"),
+        ("user", "{tree}")
+    ])
+    chain = prompt | llm
+    result = chain.invoke({"tree": tree_output})
+
+    try:
+        return eval(result.content) if isinstance(result.content, str) else result.content
+    except Exception:
+        return {"raw_output": result.content}
+
+
+# ========== Test Usage ==========
+if __name__ == "__main__":
+    print("\n Parsing README...\n")
+    readme_results = parse_readme(README_PATH)
+    print(readme_results)
+
+    print("\n Parsing Directory Tree...\n")
+    tree_results = parse_directory_structure(PROJECT_DIR)
+    print(tree_results)
